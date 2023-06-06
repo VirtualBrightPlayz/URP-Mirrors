@@ -1,11 +1,5 @@
 # URP-Mirrors
-Unity URP Mirrors
+Unity URP 14.0 Mirrors
 
-- Mirror (Empty GameObject)
-- - Quad (Rotate 180 on Y Axis)
-- - Camera
-
-- Add `Mirror` to the Quad, set the Material to a new Material with the `Unlit/ScreenUVMap` Shader
-- Set `thisPortal` to Mirror
-- Set `linked` to the Camera
+- Add `Mirror` Script to an empty GameObject
 - Profit.

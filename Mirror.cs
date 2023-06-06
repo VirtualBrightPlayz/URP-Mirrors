@@ -6,22 +6,23 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-[RequireComponent(typeof(MeshRenderer))]
+[ExecuteInEditMode]
 public class Mirror : MonoBehaviour
 {
-    public GameObject thisPortal;
-    public Camera linked;
-    public RTHandle rt;
-    public RTHandle rt2;
-    public float value;
+    public GameObject thisGameObject => mrObj;
+    private GameObject mrObj;
+    private GameObject camObj;
+    private Camera linkedCam;
+    private RTHandle rt;
+    private RTHandle rt2;
     private MeshRenderer mr;
-    public int maxRendersPerFrame = 0;
-    private int renders = 0;
+    [Min(0.001f)]
     public float renderScale = 1f;
     public Vector2Int renderSize = Vector2Int.zero;
     private float oldRenderScale = 1f;
     private Vector2Int oldRenderSize = Vector2Int.zero;
     public bool excludeSceneCam = true;
+    private Material mat;
 
     private void Awake()
     {
@@ -30,8 +31,22 @@ public class Mirror : MonoBehaviour
 
     private void OnEnable()
     {
+        if (mrObj == null)
+            mrObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        mrObj.name = name + "_Quad";
+        mrObj.transform.SetParent(transform, false);
+        mrObj.hideFlags = HideFlags.HideAndDontSave;
+        mr = mrObj.GetComponent<MeshRenderer>();
+        if (camObj == null)
+            camObj = new GameObject(name + "_Camera", typeof(Camera));
+        camObj.transform.SetParent(transform, false);
+        camObj.hideFlags = HideFlags.HideAndDontSave;
+        linkedCam = camObj.GetComponent<Camera>();
+        if (mat == null)
+            mat = new Material(Shader.Find("VirtualBrightPlayz/Mirror"));
+        mr.sharedMaterial = mat;
         RTHandles.Initialize(Screen.width, Screen.height);
-        if (renderSize.x == 0 || renderSize.y == 0)
+        if (renderSize.x <= 0 || renderSize.y <= 0)
         {
             rt = RTHandles.Alloc(Vector2.one * renderScale, name: $"{name}_Main");
             rt2 = RTHandles.Alloc(Vector2.one * renderScale, name: $"{name}_Alt");
@@ -57,7 +72,7 @@ public class Mirror : MonoBehaviour
 
     private void OnCameraRender(ScriptableRenderContext arg1, Camera arg2)
     {
-        if (arg2.GetUniversalAdditionalCameraData().renderType == CameraRenderType.Base && arg2.enabled && IsVisible(arg2, mr.bounds))
+        if (IsVisible(arg2, mr.bounds))
         {
             OnWillRenderObjectWCam(arg2, true);
         }
@@ -81,32 +96,21 @@ public class Mirror : MonoBehaviour
         rt2 = null;
     }
 
+    private void OnDestroy()
+    {
+        DestroyImmediate(mrObj);
+        DestroyImmediate(camObj);
+    }
+
     private void OnWillRenderObjectWCam(Camera current, bool render)
     {
-        /*
-        if (maxRendersPerFrame > 0)
-        {
-            if (current != linked && current.enabled)
-                renders = maxRendersPerFrame;
-            if (renders < 0)
-            {
-                mr.material.SetTexture("_MainTex", rt[maxRendersPerFrame-1]);
-                mr.material.SetTexture("_AltTex", rt2[maxRendersPerFrame-1]);
-                return;
-            }
-            renders--;
-        }
-        else
-        */
-        {
-            if (current == linked)
-                return;
-            if (!current.enabled && excludeSceneCam)
-                return;
-        }
+        if (current == linkedCam)
+            return;
+        // if (!current.enabled)
+        //     return;
         if (current.cameraType == CameraType.SceneView && excludeSceneCam)
             return;
-        if (linked && thisPortal)
+        if (linkedCam && thisGameObject)
         {
             if (!render)
                 return;
@@ -142,48 +146,41 @@ public class Mirror : MonoBehaviour
     {
         if (rt3 == null)
             return;
-        linked.stereoTargetEye = StereoTargetEyeMask.None;
+        linkedCam.stereoTargetEye = StereoTargetEyeMask.None;
 
-        var prevRenderMat = linked.projectionMatrix;
-        var prevRenderNear = linked.nearClipPlane;
-        var prevPos = linked.transform.position;
-        var prevRot = linked.transform.rotation;
+        var prevRenderMat = linkedCam.projectionMatrix;
+        var prevRenderNear = linkedCam.nearClipPlane;
+        var prevPos = linkedCam.transform.position;
+        var prevRot = linkedCam.transform.rotation;
 
-        linked.fieldOfView = current.fieldOfView;
-        linked.nearClipPlane = current.nearClipPlane;
-        linked.farClipPlane = current.farClipPlane;
-        linked.projectionMatrix = mat;
+        linkedCam.fieldOfView = current.fieldOfView;
+        linkedCam.nearClipPlane = current.nearClipPlane;
+        linkedCam.farClipPlane = current.farClipPlane;
+        linkedCam.projectionMatrix = mat;
 
-        linked.transform.localPosition = Vector3.Reflect(thisPortal.transform.InverseTransformPoint(pos), Vector3.forward);
-        linked.transform.localRotation = Quaternion.LookRotation(Vector3.Reflect(thisPortal.transform.InverseTransformDirection(rot * Vector3.forward), Vector3.forward), Vector3.Reflect(thisPortal.transform.InverseTransformDirection(rot * Vector3.up), Vector3.forward));
+        linkedCam.transform.localPosition = Vector3.Reflect(thisGameObject.transform.InverseTransformPoint(pos), Vector3.forward);
+        linkedCam.transform.localRotation = Quaternion.LookRotation(Vector3.Reflect(thisGameObject.transform.InverseTransformDirection(rot * Vector3.forward), Vector3.forward), Vector3.Reflect(thisGameObject.transform.InverseTransformDirection(rot * Vector3.up), Vector3.forward));
 
-        Transform clipPlane = thisPortal.transform;
-        int dot = System.Math.Sign(Vector3.Dot(clipPlane.forward, (clipPlane.position - linked.transform.position)));
+        Transform clipPlane = thisGameObject.transform;
+        int dot = System.Math.Sign(Vector3.Dot(clipPlane.forward, (clipPlane.position - linkedCam.transform.position)));
 
-        Vector3 camSpacePos = (linked.worldToCameraMatrix).MultiplyPoint(clipPlane.position);
-        Vector3 camSpaceNormal = (linked.worldToCameraMatrix).MultiplyVector(clipPlane.forward) * dot;
-        float camSpaceDist = -Vector3.Dot(camSpacePos, camSpaceNormal) + value;
+        Vector3 camSpacePos = (linkedCam.worldToCameraMatrix).MultiplyPoint(clipPlane.position);
+        Vector3 camSpaceNormal = (linkedCam.worldToCameraMatrix).MultiplyVector(clipPlane.forward) * dot;
+        float camSpaceDist = -Vector3.Dot(camSpacePos, camSpaceNormal);
         Vector4 clipPlaneCamSpace = new Vector4(camSpaceNormal.x, camSpaceNormal.y, camSpaceNormal.z, camSpaceDist);
-        var renderMat = linked.CalculateObliqueMatrix(clipPlaneCamSpace);
-        linked.projectionMatrix = renderMat;
-        linked.nearClipPlane = Vector3.Distance(linked.transform.position, clipPlane.position);
+        var renderMat = linkedCam.CalculateObliqueMatrix(clipPlaneCamSpace);
+        linkedCam.projectionMatrix = renderMat;
+        linkedCam.nearClipPlane = Vector3.Distance(linkedCam.transform.position, clipPlane.position);
 
-        linked.forceIntoRenderTexture = true;
-        var oldrt = linked.targetTexture;
-        // linked.targetTexture = rt3;
+        linkedCam.forceIntoRenderTexture = true;
+        var oldrt = linkedCam.targetTexture;
 
         // UniversalRenderPipeline.RenderSingleCamera(ctx, linked);
-        RenderPipeline.SubmitRenderRequest(linked, new UniversalRenderPipeline.SingleCameraRequest()
+        RenderPipeline.SubmitRenderRequest(linkedCam, new UniversalRenderPipeline.SingleCameraRequest()
         {
             destination = rt3,
         });
 
-        /*
-        linked.nearClipPlane = prevRenderNear;
-        linked.projectionMatrix = prevRenderMat;
-        linked.transform.rotation = prevRot;
-        linked.transform.position = prevPos;
-        */
-        mr.material.SetTexture(texId, rt3);
+        this.mat.SetTexture(texId, rt3);
     }
 }
