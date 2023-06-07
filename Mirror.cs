@@ -42,6 +42,7 @@ public class Mirror : MonoBehaviour
         camObj.transform.SetParent(transform, false);
         camObj.hideFlags = HideFlags.HideAndDontSave;
         linkedCam = camObj.GetComponent<Camera>();
+        linkedCam.enabled = false;
         if (mat == null)
             mat = new Material(Shader.Find("VirtualBrightPlayz/Mirror"));
         mr.sharedMaterial = mat;
@@ -72,7 +73,7 @@ public class Mirror : MonoBehaviour
 
     private void OnCameraRender(ScriptableRenderContext arg1, Camera arg2)
     {
-        if (IsVisible(arg2, mr.bounds))
+        if (IsVisible(arg2, mr.bounds) && arg2.cameraType == CameraType.SceneView)
         {
             OnWillRenderObjectWCam(arg2, true);
         }
@@ -84,6 +85,11 @@ public class Mirror : MonoBehaviour
         {
             OnDisable();
             OnEnable();
+        }
+        foreach (var cam in Camera.allCameras)
+        {
+            if (IsVisible(cam, mr.bounds))
+                OnWillRenderObjectWCam(cam, true);
         }
     }
 
@@ -106,8 +112,6 @@ public class Mirror : MonoBehaviour
     {
         if (current == linkedCam)
             return;
-        // if (!current.enabled)
-        //     return;
         if (current.cameraType == CameraType.SceneView && excludeSceneCam)
             return;
         if (linkedCam && thisGameObject)
@@ -174,12 +178,13 @@ public class Mirror : MonoBehaviour
 
         linkedCam.forceIntoRenderTexture = true;
         var oldrt = linkedCam.targetTexture;
+        linkedCam.targetTexture = rt3;
 
-        // UniversalRenderPipeline.RenderSingleCamera(ctx, linked);
         RenderPipeline.SubmitRenderRequest(linkedCam, new UniversalRenderPipeline.SingleCameraRequest()
         {
             destination = rt3,
         });
+        linkedCam.targetTexture = oldrt;
 
         this.mat.SetTexture(texId, rt3);
     }
