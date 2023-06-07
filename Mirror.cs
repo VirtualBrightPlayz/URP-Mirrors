@@ -58,6 +58,9 @@ public class Mirror : MonoBehaviour
         oldRenderScale = renderScale;
         oldRenderSize = renderSize;
         RenderPipelineManager.beginCameraRendering += OnCameraRender;
+    #if UNITY_EDITOR
+        UnityEditor.EditorApplication.update += EditorUpdate;
+    #endif
     }
 
     // https://forum.unity.com/threads/camera-current-returns-null-when-calling-it-in-onwillrenderobject-with-universalrp.929880/
@@ -105,16 +108,26 @@ public class Mirror : MonoBehaviour
                 OnWillRenderObjectWCam(cam, false);
             }
         }
-    #if UNITY_EDITOR
-        if (IsVisible(UnityEditor.SceneView.lastActiveSceneView.camera, mr.bounds))
-        {
-            OnWillRenderObjectWCam(UnityEditor.SceneView.lastActiveSceneView.camera, false);
-        }
-    #endif
     }
+
+#if UNITY_EDITOR
+    private void EditorUpdate()
+    {
+        foreach (Camera view in UnityEditor.SceneView.GetAllSceneCameras())
+        {
+            if (IsVisible(view, mr.bounds))
+            {
+                OnWillRenderObjectWCam(view, false);
+            }
+        }
+    }
+#endif
 
     private void OnDisable()
     {
+    #if UNITY_EDITOR
+        UnityEditor.EditorApplication.update -= EditorUpdate;
+    #endif
         RenderPipelineManager.beginCameraRendering -= OnCameraRender;
         foreach (var info in infos)
         {
