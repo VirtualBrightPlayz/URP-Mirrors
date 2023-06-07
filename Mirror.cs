@@ -29,7 +29,6 @@ public class Mirror : MonoBehaviour
     public Vector2Int renderSize = Vector2Int.zero;
     private float oldRenderScale = 1f;
     private Vector2Int oldRenderSize = Vector2Int.zero;
-    public bool excludeSceneCam = true;
     private Material mat;
     private List<Info> infos = new List<Info>();
 
@@ -134,8 +133,6 @@ public class Mirror : MonoBehaviour
     private void OnWillRenderObjectWCam(Camera current, bool render)
     {
         if (current == linkedCam)
-            return;
-        if (current.cameraType == CameraType.SceneView && excludeSceneCam)
             return;
         int camIdx = infos.FindIndex(x => x.cam == current);
         if (camIdx == -1)
