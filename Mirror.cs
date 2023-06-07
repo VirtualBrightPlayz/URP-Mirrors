@@ -106,6 +106,12 @@ public class Mirror : MonoBehaviour
                 OnWillRenderObjectWCam(cam, false);
             }
         }
+    #if UNITY_EDITOR
+        if (IsVisible(UnityEditor.SceneView.lastActiveSceneView.camera, mr.bounds))
+        {
+            OnWillRenderObjectWCam(UnityEditor.SceneView.lastActiveSceneView.camera, false);
+        }
+    #endif
     }
 
     private void OnDisable()
