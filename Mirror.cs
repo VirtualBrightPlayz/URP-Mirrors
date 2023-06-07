@@ -219,7 +219,7 @@ public class Mirror : MonoBehaviour
             Vector4 clipPlaneCamSpace = new Vector4(camSpaceNormal.x, camSpaceNormal.y, camSpaceNormal.z, camSpaceDist);
             var renderMat = linkedCam.CalculateObliqueMatrix(clipPlaneCamSpace);
             linkedCam.projectionMatrix = renderMat;
-            linkedCam.nearClipPlane = Vector3.Distance(linkedCam.transform.position, clipPlane.position);
+            // linkedCam.nearClipPlane = Vector3.Distance(linkedCam.transform.position, clipPlane.position);
 
             linkedCam.forceIntoRenderTexture = true;
             var oldrt = linkedCam.targetTexture;
